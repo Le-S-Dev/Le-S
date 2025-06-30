@@ -176,14 +176,47 @@
             z-index: 1; bottom: 125%; left: 50%; margin-left: -50px; transition: opacity 0.2s; width: 100px;
         }
         .dock-item:hover .tooltip { visibility: visible; opacity: 1; }
-
+        
         #controls-panel {
-            position: absolute; top: 2rem; right: 2rem; padding: 1.5rem; width: 300px;
+            position: absolute; 
+            top: 2rem; 
+            right: 2rem; 
+            padding: 1.5rem; 
+            width: 300px;
+            z-index: 10;
         }
         #controls-panel h3 { font-family: 'Orbitron', sans-serif; text-align: center; margin-bottom: 1.5rem; color: var(--primary-glow); }
         #controls-panel .control-group { margin-bottom: 1.2rem; }
         #controls-panel label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; }
         #controls-panel input { width: 100%; }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            #controls-panel { display: none; }
+            #dock {
+                position: fixed;
+                width: 100%;
+                border-radius: 0;
+                justify-content: space-around;
+                bottom: 0;
+                background: rgba(10, 10, 30, 0.8);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(0, 246, 255, 0.25);
+            }
+            .dock-item {
+                width: 50px;
+                height: 50px;
+            }
+            .dock-item .tooltip { display: none; }
+            #desktop header {
+                padding-top: 5rem;
+                transform: none;
+                position: static;
+            }
+            #desktop {
+                overflow-y: auto;
+            }
+        }
         
     </style>
 </head>
@@ -198,7 +231,7 @@
     
     <main>
         <div id="desktop" class="flex-grow w-full h-full relative">
-            <header class="text-center py-20 absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            <header class="text-center py-20 absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none md:pointer-events-auto">
                  <h1 class="text-7xl md:text-9xl orbitron">Le-S</h1>
                  <p class="mt-4 text-xl md:text-2xl" style="text-shadow: 0 0 4px var(--secondary-glow);">Visionary Front-End Architect</p>
             </header>
@@ -347,6 +380,10 @@
         let highestZ = 100;
         let openWindows = {};
 
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
         dock.addEventListener('click', (e) => {
             const dockItem = e.target.closest('.dock-item');
             if (!dockItem) return;
@@ -365,29 +402,54 @@
         });
 
         function createWindow(id, title, srcdocId) {
+            if(isMobile()) {
+                document.querySelectorAll('.window').forEach(w => w.style.display = 'none');
+            }
+
             const win = document.createElement('div');
             win.className = 'window glass-pane';
-            win.style.width = '800px';
-            win.style.height = '600px';
-            win.style.top = `${Math.random() * 50 + 20}px`;
-            const availableWidth = window.innerWidth - 800;
-            win.style.left = `${(availableWidth > 0 ? Math.random() * availableWidth : 0)}px`;
             
             const srcDocContent = document.getElementById(srcdocId).innerHTML;
+            
+            if (isMobile()) {
+                win.style.width = '100vw';
+                win.style.height = '100vh';
+                win.style.top = '0';
+                win.style.left = '0';
+                win.style.resize = 'none';
+                win.style.borderRadius = '0';
 
-            win.innerHTML = `
-                <div class="window-header">
-                    <span class="window-title">${title}</span>
-                    <div class="window-controls">
-                        <button class="minimize-btn"><i data-feather="minus" class="pointer-events-none"></i></button>
-                        <button class="maximize-btn"><i data-feather="square" class="pointer-events-none"></i></button>
-                        <button class="close-btn"><i data-feather="x" class="pointer-events-none"></i></button>
+                 win.innerHTML = `
+                    <div class="window-header" style="border-radius:0;">
+                        <span class="window-title">${title}</span>
+                        <div class="window-controls">
+                             <button class="close-btn"><i data-feather="x" class="pointer-events-none"></i></button>
+                        </div>
                     </div>
-                </div>
-                <div class="window-content">
-                    <iframe srcdoc='${srcDocContent.replace(/'/g, "&apos;")}'></iframe>
-                </div>
-            `;
+                    <div class="window-content">
+                        <iframe srcdoc='${srcDocContent.replace(/'/g, "&apos;")}'></iframe>
+                    </div>
+                `;
+            } else {
+                 win.style.width = '800px';
+                win.style.height = '600px';
+                win.style.top = `${Math.random() * 50 + 20}px`;
+                const availableWidth = window.innerWidth - 800;
+                win.style.left = `${(availableWidth > 0 ? Math.random() * availableWidth : 0)}px`;
+                win.innerHTML = `
+                    <div class="window-header">
+                        <span class="window-title">${title}</span>
+                        <div class="window-controls">
+                            <button class="minimize-btn"><i data-feather="minus" class="pointer-events-none"></i></button>
+                            <button class="maximize-btn"><i data-feather="square" class="pointer-events-none"></i></button>
+                            <button class="close-btn"><i data-feather="x" class="pointer-events-none"></i></button>
+                        </div>
+                    </div>
+                    <div class="window-content">
+                        <iframe srcdoc='${srcDocContent.replace(/'/g, "&apos;")}'></iframe>
+                    </div>
+                `;
+            }
             
             desktop.appendChild(win);
             feather.replace();
@@ -396,12 +458,15 @@
             
             updateActiveDockIcons();
             focusWindow(win);
-            makeDraggable(win, id);
             
+            if(!isMobile()){
+                makeDraggable(win, id);
+                win.querySelector('.minimize-btn').addEventListener('click', () => minimizeWindow(id, true));
+                win.querySelector('.maximize-btn').addEventListener('click', () => maximizeWindow(id));
+            }
+
             win.querySelector('.close-btn').addEventListener('click', () => closeWindow(id));
-            win.querySelector('.minimize-btn').addEventListener('click', () => minimizeWindow(id, true));
-            win.querySelector('.maximize-btn').addEventListener('click', () => maximizeWindow(id));
-            win.addEventListener('mousedown', () => focusWindow(win));
+            win.addEventListener('mousedown', () => focusWindow(win), !isMobile());
         }
         
         function focusWindow(win) {
